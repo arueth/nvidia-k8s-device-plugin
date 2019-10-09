@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvidia-device-plugin-daemonset
+  namespace: kube-system
+  labels:
+     k8s-app: nvidia-device-plugin-daemonset
+     addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      k8s-app: nvidia-device-plugin-daemonset
+  template:
+    metadata:
+      labels:
+        k8s-app: nvidia-device-plugin-daemonset
+    spec:
+      priorityClassName: system-node-critical
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: docker.io/gpu-manufacturer
+                operator: In
+                values:
+                - nvidia
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - image: nvidia/k8s-device-plugin:1.0.0-beta
+        name: nvidia-device-plugin-ctr
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        volumeMounts:
+          - name: device-plugin
+            mountPath: /var/lib/kubelet/device-plugins
+      volumes:
+        - name: device-plugin
+          hostPath:
+            path: /var/lib/kubelet/device-plugins
